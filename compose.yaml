@@ -1,0 +1,18 @@
+services:
+  web:
+    build: .
+    ports:
+      - "${HOST_BIND:-0.0.0.0}:${HOST_PORT:-8080}:8000"
+    environment:
+      DETACTICA_SECRET_KEY: ${DETACTICA_SECRET_KEY:?Set DETACTICA_SECRET_KEY in .env to a random secret of at least 32 characters}
+      DATABASE_URL: ${DATABASE_URL:-}
+      DETACTICA_GMAIL_APP_PASSWORD: ${DETACTICA_GMAIL_APP_PASSWORD:-}
+      DETACTICA_SECURE_COOKIES: ${DETACTICA_SECURE_COOKIES:-0}
+      DETACTICA_TRUST_PROXY: ${DETACTICA_TRUST_PROXY:-0}
+    volumes:
+      - detactica_data:/app/instance
+    restart: unless-stopped
+    init: true
+
+volumes:
+  detactica_data:

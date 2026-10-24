@@ -27,6 +27,7 @@ from werkzeug.security import (
     generate_password_hash,
     check_password_hash
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from models import (
     db,
@@ -47,6 +48,20 @@ app.config["SECRET_KEY"] = os.environ.get(
     "DETACTICA_SECRET_KEY",
     "detactica-local-dev-secret-key"
 )
+if os.environ.get("DETACTICA_ENV") == "production":
+    secret_key = app.config["SECRET_KEY"]
+    if len(secret_key) < 32 or secret_key == "detactica-local-dev-secret-key":
+        raise RuntimeError("Set DETACTICA_SECRET_KEY to a random secret of at least 32 characters")
+
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("DETACTICA_SECURE_COOKIES") == "1"
+app.config["REMEMBER_COOKIE_SECURE"] = app.config["SESSION_COOKIE_SECURE"]
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
+
+# Enable only behind one trusted proxy that overwrites these headers.
+if os.environ.get("DETACTICA_TRUST_PROXY") == "1":
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0)
+
 database_url = os.environ.get("DATABASE_URL", "").strip()
 if database_url.startswith("postgres://"):
     database_url = "postgresql://" + database_url[len("postgres://"):]
@@ -62,6 +77,17 @@ app.config["MAIL_SENDER"] = "deetactica@gmail.com"
 app.config["CONTACT_PHONE"] = "01055856727"
 
 db.init_app(app)
+
+
+@app.route("/healthz")
+def healthz():
+    try:
+        db.session.execute(text("SELECT 1"))
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Database health check failed")
+        return {"status": "unavailable"}, 503
+    return {"status": "ok"}
 
 # =========================================================
 # LANGUAGE / TRANSLATION

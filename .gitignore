@@ -1,7 +1,10 @@
 # Local-only files
 .venv/
+.venv*/
 .idea/
 __pycache__/
 *.pyc
 instance/
 .env
+.env.*
+!.env.example
